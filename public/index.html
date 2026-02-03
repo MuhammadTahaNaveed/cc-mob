@@ -224,7 +224,7 @@
   .code-block {
     font-family: var(--mono);
     font-size: 12px;
-    line-height: 1.5;
+    line-height: 1.6;
     color: var(--text);
     background: var(--code-bg);
     border: 1px solid var(--border);
@@ -239,6 +239,30 @@
 
   .code-block.short {
     max-height: none;
+  }
+
+  /* Bash command with prompt */
+  .bash-block {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bash-prompt {
+    color: #8b949e;
+    user-select: none;
+  }
+
+  .bash-command {
+    color: var(--text);
+    white-space: pre-wrap;
+    word-break: break-all;
   }
 
   .content-preview {
@@ -292,6 +316,81 @@
 
   .diff-label.old { color: var(--accent); }
   .diff-label.new { color: var(--green); }
+
+  /* Claude Code style diff blocks */
+  .diff-block {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    max-height: 200px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .diff-line {
+    display: flex;
+    min-height: 20px;
+  }
+
+  .diff-line-num {
+    flex-shrink: 0;
+    width: 36px;
+    padding: 0 8px;
+    text-align: right;
+    color: var(--text-dim);
+    background: rgba(0, 0, 0, 0.2);
+    border-right: 1px solid var(--border);
+    user-select: none;
+  }
+
+  .diff-line-content {
+    flex: 1;
+    padding: 0 8px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .diff-line.added {
+    background: rgba(46, 160, 67, 0.15);
+  }
+
+  .diff-line.added .diff-line-num {
+    background: rgba(46, 160, 67, 0.25);
+    color: var(--green);
+  }
+
+  .diff-line.added .diff-line-content {
+    color: #7ee787;
+  }
+
+  .diff-line.removed {
+    background: rgba(248, 81, 73, 0.15);
+  }
+
+  .diff-line.removed .diff-line-num {
+    background: rgba(248, 81, 73, 0.25);
+    color: var(--accent);
+  }
+
+  .diff-line.removed .diff-line-content {
+    color: #ffa198;
+  }
+
+  /* Syntax highlighting colors - Claude Code style */
+  .syn-keyword { color: #ff7b72; }
+  .syn-string { color: #a5d6ff; }
+  .syn-number { color: #79c0ff; }
+  .syn-comment { color: #8b949e; font-style: italic; }
+  .syn-function { color: #d2a8ff; }
+  .syn-type { color: #7ee787; }
+  .syn-operator { color: #ff7b72; }
+  .syn-property { color: #79c0ff; }
+  .syn-variable { color: #ffa657; }
+  .syn-punctuation { color: #8b949e; }
 
   .url-display {
     font-family: var(--mono);
@@ -961,12 +1060,87 @@ function getToolDisplayName(toolName) {
   return toolName || 'Tool';
 }
 
+// --- Syntax highlighting ---
+function highlightSyntax(code, filePath) {
+  // Detect language from file extension
+  const ext = (filePath || '').split('.').pop().toLowerCase();
+  const jsLike = ['js', 'ts', 'jsx', 'tsx', 'mjs', 'cjs'].includes(ext);
+  const pyLike = ['py', 'pyw'].includes(ext);
+  const shLike = ['sh', 'bash', 'zsh'].includes(ext);
+  const jsonLike = ['json', 'json5'].includes(ext);
+  const cssLike = ['css', 'scss', 'less'].includes(ext);
+  const htmlLike = ['html', 'htm', 'xml', 'svg'].includes(ext);
+
+  let escaped = esc(code);
+
+  // Common patterns for all languages
+  // Comments (must be first to avoid interference)
+  if (jsLike || cssLike || jsonLike) {
+    escaped = escaped.replace(/(\/\/[^\n]*)/g, '<span class="syn-comment">$1</span>');
+    escaped = escaped.replace(/(\/\*[\s\S]*?\*\/)/g, '<span class="syn-comment">$1</span>');
+  }
+  if (pyLike || shLike) {
+    escaped = escaped.replace(/(#[^\n]*)/g, '<span class="syn-comment">$1</span>');
+  }
+  if (htmlLike) {
+    escaped = escaped.replace(/(&lt;!--[\s\S]*?--&gt;)/g, '<span class="syn-comment">$1</span>');
+  }
+
+  // Strings
+  escaped = escaped.replace(/(&quot;[^&]*?&quot;|&#39;[^&]*?&#39;|`[^`]*?`)/g, '<span class="syn-string">$1</span>');
+
+  // Numbers
+  escaped = escaped.replace(/\b(\d+\.?\d*)\b/g, '<span class="syn-number">$1</span>');
+
+  // Keywords
+  if (jsLike) {
+    escaped = escaped.replace(/\b(const|let|var|function|async|await|return|if|else|for|while|class|extends|import|export|from|default|new|this|try|catch|throw|typeof|instanceof|true|false|null|undefined)\b/g, '<span class="syn-keyword">$1</span>');
+  }
+  if (pyLike) {
+    escaped = escaped.replace(/\b(def|class|import|from|return|if|elif|else|for|while|try|except|raise|with|as|True|False|None|self|async|await|lambda|yield)\b/g, '<span class="syn-keyword">$1</span>');
+  }
+  if (shLike) {
+    escaped = escaped.replace(/\b(if|then|else|elif|fi|for|while|do|done|case|esac|function|return|exit|export|local|readonly)\b/g, '<span class="syn-keyword">$1</span>');
+  }
+
+  // Functions (word followed by parenthesis)
+  escaped = escaped.replace(/\b([a-zA-Z_][a-zA-Z0-9_]*)\s*\(/g, '<span class="syn-function">$1</span>(');
+
+  return escaped;
+}
+
+// Render diff block with line numbers - Claude Code style
+function renderDiffBlock(code, type, filePath) {
+  const lines = code.split('\n');
+  const maxLines = 20; // Limit displayed lines
+  const displayLines = lines.slice(0, maxLines);
+  const truncated = lines.length > maxLines;
+
+  let html = '<div class="diff-block">';
+  displayLines.forEach((line, i) => {
+    const lineClass = type === 'removed' ? 'diff-line removed' : 'diff-line added';
+    const highlighted = highlightSyntax(line || ' ', filePath);
+    html += `<div class="${lineClass}">
+      <span class="diff-line-num">${i + 1}</span>
+      <span class="diff-line-content">${highlighted}</span>
+    </div>`;
+  });
+  if (truncated) {
+    html += `<div class="diff-line">
+      <span class="diff-line-num">...</span>
+      <span class="diff-line-content" style="color:var(--text-dim)">+${lines.length - maxLines} more lines</span>
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
 // --- Intelligent content rendering ---
 function renderToolContent(toolName, toolInput) {
   const name = (toolName || '').toLowerCase();
   const input = (typeof toolInput === 'object' && toolInput !== null) ? toolInput : {};
 
-  // Bash: show command in code block
+  // Bash: show command with prompt - Claude Code style
   if (name.includes('bash') || name === 'execute_command') {
     const cmd = input.command || input.cmd || (typeof toolInput === 'string' ? toolInput : '');
     let html = '';
@@ -974,33 +1148,33 @@ function renderToolContent(toolName, toolInput) {
       html += `<div class="description-text">${esc(input.description)}</div>`;
     }
     if (cmd) {
-      const isShort = cmd.length < 200 && !cmd.includes('\n');
-      html += `<div class="code-block${isShort ? ' short' : ''}">${esc(cmd)}</div>`;
+      const highlighted = highlightSyntax(cmd, 'script.sh');
+      html += `<div class="bash-block"><span class="bash-prompt">$ </span><span class="bash-command">${highlighted}</span></div>`;
     }
     return html || renderFallback(toolInput);
   }
 
-  // Edit: show file path + old/new
+  // Edit: show file path + Claude Code style diff
   if (name.includes('edit')) {
     let html = '';
     if (input.file_path) html += `<div class="file-path">${esc(input.file_path)}</div>`;
     if (input.old_string != null) {
-      html += `<div class="diff-label old">Remove</div>`;
-      html += `<div class="code-block">${esc(truncate(input.old_string, 300))}</div>`;
+      html += `<div class="diff-label old">− Remove</div>`;
+      html += renderDiffBlock(input.old_string, 'removed', input.file_path);
     }
     if (input.new_string != null) {
-      html += `<div class="diff-label new">Add</div>`;
-      html += `<div class="code-block">${esc(truncate(input.new_string, 300))}</div>`;
+      html += `<div class="diff-label new">+ Add</div>`;
+      html += renderDiffBlock(input.new_string, 'added', input.file_path);
     }
     return html || renderFallback(toolInput);
   }
 
-  // Write: show file path + content preview
+  // Write: show file path + content with syntax highlighting
   if (name.includes('write')) {
     let html = '';
     if (input.file_path) html += `<div class="file-path">${esc(input.file_path)}</div>`;
     if (input.content) {
-      html += `<div class="code-block">${esc(truncate(input.content, 400))}</div>`;
+      html += renderDiffBlock(truncate(input.content, 800), 'added', input.file_path);
     }
     return html || renderFallback(toolInput);
   }
