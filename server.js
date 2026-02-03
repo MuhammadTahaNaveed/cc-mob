@@ -201,6 +201,20 @@ wss.on('connection', (ws, req) => {
   ws.on('pong', () => { ws.isAlive = true; });
   ws.on('close', () => wsClients.delete(ws));
   ws.on('error', () => wsClients.delete(ws));
+
+  // Handle client messages (ping keepalive)
+  ws.on('message', (data) => {
+    ws.isAlive = true; // Any message means connection is alive
+    try {
+      const msg = JSON.parse(data.toString());
+      if (msg.type === 'ping') {
+        // Respond with pong to keep connection alive
+        ws.send(JSON.stringify({ event: 'pong' }));
+      }
+    } catch (e) {
+      // Ignore invalid messages
+    }
+  });
 });
 
 // Ping/pong keepalive - terminate stale connections every 30s

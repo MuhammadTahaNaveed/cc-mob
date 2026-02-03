@@ -1861,7 +1861,15 @@ function toggleHistory() {
 }
 
 // --- WebSocket ---
+let wsKeepaliveInterval = null;
+let lastMessageTime = Date.now();
+let wsHealthCheckInterval = null;
+
 function connectWS() {
+  // Clear any existing intervals
+  if (wsKeepaliveInterval) clearInterval(wsKeepaliveInterval);
+  if (wsHealthCheckInterval) clearInterval(wsHealthCheckInterval);
+
   // WebSocket connections automatically send cookies (same-origin)
   ws = new WebSocket(WS_URL);
 
@@ -1869,11 +1877,35 @@ function connectWS() {
     document.getElementById('statusDot').classList.add('connected');
     document.getElementById('statusText').textContent = 'connected';
     reconnectDelay = 1000;
+    lastMessageTime = Date.now();
+
+    // Client-side keepalive: send a message every 20s to keep connection alive
+    wsKeepaliveInterval = setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try {
+          ws.send(JSON.stringify({ type: 'ping' }));
+        } catch (e) {
+          // Connection dead, close and reconnect
+          ws.close();
+        }
+      }
+    }, 20000);
+
+    // Health check: if no message received in 45s, connection might be dead
+    wsHealthCheckInterval = setInterval(() => {
+      if (Date.now() - lastMessageTime > 45000) {
+        console.log('No message in 45s, reconnecting...');
+        if (ws) ws.close();
+      }
+    }, 15000);
   };
 
   ws.onclose = () => {
+    if (wsKeepaliveInterval) clearInterval(wsKeepaliveInterval);
+    if (wsHealthCheckInterval) clearInterval(wsHealthCheckInterval);
     document.getElementById('statusDot').classList.remove('connected');
     document.getElementById('statusText').textContent = 'reconnecting';
+    // Immediate retry first, then exponential backoff
     setTimeout(connectWS, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
   };
@@ -1881,6 +1913,7 @@ function connectWS() {
   ws.onerror = () => ws.close();
 
   ws.onmessage = (evt) => {
+    lastMessageTime = Date.now();
     const msg = JSON.parse(evt.data);
     if (msg.event === 'init') {
       // On reconnect, don't overwrite requests that are:
@@ -1913,6 +1946,8 @@ function connectWS() {
         requests.set(msg.data.id, { ...existing, ...msg.data, _resolving: false });
       }
       render();
+    } else if (msg.event === 'pong') {
+      // Server responded to our ping - connection is alive
     }
   };
 }
@@ -2047,6 +2082,20 @@ async function loadExisting() {
 
 // Auto-update time-ago labels every 10s
 timeAgoInterval = setInterval(updateTimeAgos, 10000);
+
+// Handle visibility change - refresh when user returns to tab
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    // User returned to tab - check connection and refresh
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      console.log('Tab visible, reconnecting...');
+      connectWS();
+    } else {
+      // Connection seems open, refresh data just in case
+      loadExisting();
+    }
+  }
+});
 
 // Authenticate first, then connect
 (async () => {
