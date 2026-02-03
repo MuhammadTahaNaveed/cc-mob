@@ -1,0 +1,1751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0d1117">
+<title>cc-mob</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --surface-raised: #1c2333;
+    --border: #30363d;
+    --accent: #e05260;
+    --green: #3fb950;
+    --green-dim: #238636;
+    --yellow: #d29922;
+    --yellow-dim: #9e6a03;
+    --blue: #58a6ff;
+    --text: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-dim: #484f58;
+    --code-bg: #0d1117;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --mono: 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: 0 16px 100px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Header */
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    margin: 0 -16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  header h1 {
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .badge {
+    display: none;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 20px;
+    text-align: center;
+  }
+
+  .badge.visible { display: inline-block; }
+
+  .status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-dim);
+    transition: background 0.3s;
+  }
+
+  .status-dot.connected {
+    background: var(--green);
+    animation: pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(63, 185, 80, 0.4); }
+    50% { box-shadow: 0 0 0 4px rgba(63, 185, 80, 0); }
+  }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    color: var(--text-dim);
+    padding: 60px 20px;
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  .empty-state-title {
+    font-size: 16px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+
+  /* Cards */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    animation: cardIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: opacity 0.4s, transform 0.4s, max-height 0.4s;
+    overflow: hidden;
+  }
+
+  .card.resolving {
+    opacity: 0;
+    transform: scale(0.95) translateY(-8px);
+    max-height: 0 !important;
+    padding: 0 16px;
+    margin-bottom: 0;
+    border-width: 0;
+  }
+
+  @keyframes cardIn {
+    from { opacity: 0; transform: translateY(-12px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  /* Card header */
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .tool-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .tool-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+    font-family: var(--mono);
+    color: #000;
+    flex-shrink: 0;
+  }
+
+  .tool-icon.permission { background: var(--yellow); }
+  .tool-icon.question { background: var(--green); }
+
+  .tool-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .tool-type {
+    font-size: 11px;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+  }
+
+  .time-ago {
+    font-size: 11px;
+    color: var(--text-dim);
+    white-space: nowrap;
+  }
+
+  /* Tool content */
+  .tool-content {
+    margin-bottom: 16px;
+  }
+
+  .file-path {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--blue);
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px 8px;
+    margin-bottom: 8px;
+    word-break: break-all;
+    max-width: 100%;
+  }
+
+  .code-block {
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--text);
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 180px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .code-block.short {
+    max-height: none;
+  }
+
+  .content-preview {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    max-height: 120px;
+    overflow-y: auto;
+    word-break: break-word;
+  }
+
+  .kv-table {
+    width: 100%;
+    font-size: 13px;
+  }
+
+  .kv-table dt {
+    color: var(--text-secondary);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-top: 8px;
+    margin-bottom: 2px;
+  }
+
+  .kv-table dt:first-child { margin-top: 0; }
+
+  .kv-table dd {
+    color: var(--text);
+    word-break: break-word;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 0;
+  }
+
+  .description-text {
+    font-size: 13px;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 4px;
+  }
+
+  .diff-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 4px;
+    margin-top: 8px;
+  }
+
+  .diff-label.old { color: var(--accent); }
+  .diff-label.new { color: var(--green); }
+
+  .url-display {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--blue);
+    word-break: break-all;
+    padding: 4px 0;
+  }
+
+  .query-display {
+    font-size: 14px;
+    color: var(--text);
+    font-style: italic;
+    padding: 4px 0;
+  }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn {
+    flex: 1;
+    min-height: 48px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.1s, opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  .btn:active { transform: scale(0.97); }
+  .btn:disabled { opacity: 0.35; cursor: default; transform: none; }
+
+  .btn-allow {
+    background: var(--green-dim);
+    color: #fff;
+  }
+
+  .btn-deny {
+    background: var(--surface-raised);
+    color: var(--accent);
+    border: 1px solid var(--border);
+  }
+
+  .btn-send {
+    background: var(--green-dim);
+    color: #fff;
+  }
+
+  /* Question cards */
+  .question-text {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--text);
+    margin-bottom: 14px;
+  }
+
+  .quick-btns {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
+  .quick-btn {
+    min-height: 40px;
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    background: var(--surface-raised);
+    color: var(--text);
+    font-size: 14px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: background 0.15s, border-color 0.15s;
+    user-select: none;
+  }
+
+  .quick-btn:active {
+    background: var(--green-dim);
+    border-color: var(--green-dim);
+    color: #fff;
+  }
+
+  .answer-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .answer-input {
+    flex: 1;
+    min-height: 48px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--code-bg);
+    color: var(--text);
+    font-size: 15px;
+    resize: none;
+    line-height: 1.4;
+  }
+
+  .answer-input:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+
+  .answer-input::placeholder {
+    color: var(--text-dim);
+  }
+
+  .btn-send-inline {
+    width: 48px;
+    min-height: 48px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--green-dim);
+    color: #fff;
+    font-size: 18px;
+    font-weight: 700;
+    cursor: pointer;
+    flex-shrink: 0;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.1s;
+  }
+
+  .btn-send-inline:active { transform: scale(0.95); }
+  .btn-send-inline:disabled { opacity: 0.35; }
+
+  /* Section labels */
+  .section-label {
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    margin: 20px 0 10px;
+  }
+
+  /* History */
+  .history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 24px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .history-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 8px 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .history-count {
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .resolved-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px;
+    margin-bottom: 8px;
+    opacity: 0.6;
+  }
+
+  .resolved-card .resolved-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .resolved-card .resolved-tool {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+  }
+
+  .resolved-card .resolved-result {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    padding: 2px 8px;
+    border-radius: 4px;
+  }
+
+  .resolved-card .resolved-result.allowed {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+  }
+
+  .resolved-card .resolved-result.denied {
+    background: rgba(224, 82, 96, 0.15);
+    color: var(--accent);
+  }
+
+  .resolved-card .resolved-result.answered {
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--blue);
+  }
+
+  .resolved-card .resolved-detail {
+    font-size: 12px;
+    color: var(--text-dim);
+    word-break: break-word;
+  }
+
+  .resolved-card .resolved-time {
+    font-size: 11px;
+    color: var(--text-dim);
+    margin-top: 4px;
+  }
+
+  /* Swipe support for permission cards */
+  .swipe-wrapper {
+    position: relative;
+    margin-bottom: 12px;
+    overflow: hidden;
+    border-radius: var(--radius);
+  }
+
+  .swipe-wrapper .card {
+    margin-bottom: 0;
+    position: relative;
+    z-index: 2;
+    touch-action: pan-y;
+    will-change: transform;
+  }
+
+  .swipe-bg {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0 24px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+
+  .swipe-bg.left {
+    left: 0;
+    right: 0;
+    background: var(--green-dim);
+    color: #fff;
+    justify-content: flex-start;
+  }
+
+  .swipe-bg.right {
+    left: 0;
+    right: 0;
+    background: var(--accent);
+    color: #fff;
+    justify-content: flex-end;
+  }
+
+  .swipe-bg.visible { opacity: 1; }
+
+  .swipe-wrapper .card.swiping {
+    transition: none;
+  }
+
+  .swipe-wrapper .card.swipe-out-right {
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    transform: translateX(110%);
+    opacity: 0;
+  }
+
+  .swipe-wrapper .card.swipe-out-left {
+    transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+    transform: translateX(-110%);
+    opacity: 0;
+  }
+
+  .swipe-wrapper .card.swipe-snap {
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Multi-question cards */
+  .question-group {
+    padding: 14px 0;
+  }
+
+  .question-group + .question-group {
+    border-top: 1px solid var(--border);
+  }
+
+  .question-group:first-child {
+    padding-top: 0;
+  }
+
+  .question-group:last-child {
+    padding-bottom: 0;
+  }
+
+  .question-header-chip {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 12px;
+    background: rgba(88, 166, 255, 0.15);
+    color: var(--blue);
+    margin-bottom: 8px;
+  }
+
+  .option-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    margin-bottom: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s, background 0.15s;
+    user-select: none;
+  }
+
+  .option-card:active {
+    background: var(--surface);
+  }
+
+  .option-card.selected {
+    border-color: var(--green);
+    background: rgba(63, 185, 80, 0.08);
+  }
+
+  .option-card .option-indicator {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: border-color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .option-card.multi .option-indicator {
+    border-radius: 4px;
+  }
+
+  .option-card.selected .option-indicator {
+    border-color: var(--green);
+    background: var(--green);
+  }
+
+  .option-card.selected .option-indicator::after {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+  }
+
+  .option-card.multi.selected .option-indicator::after {
+    width: 10px;
+    height: 6px;
+    border-radius: 0;
+    background: none;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg);
+    margin-top: -2px;
+  }
+
+  .option-card .option-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .option-card .option-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .option-card .option-desc {
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.4;
+    margin-top: 2px;
+  }
+
+  .other-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    margin-bottom: 8px;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .other-option.selected {
+    border-color: var(--green);
+    background: rgba(63, 185, 80, 0.08);
+  }
+
+  .other-option .option-indicator {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 1px;
+    transition: border-color 0.15s, background 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .other-option.multi .option-indicator {
+    border-radius: 4px;
+  }
+
+  .other-option.selected .option-indicator {
+    border-color: var(--green);
+    background: var(--green);
+  }
+
+  .other-option.selected .option-indicator::after {
+    content: '';
+    display: block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #fff;
+  }
+
+  .other-option.multi.selected .option-indicator::after {
+    width: 10px;
+    height: 6px;
+    border-radius: 0;
+    background: none;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg);
+    margin-top: -2px;
+  }
+
+  .other-option .other-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .other-option .option-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    line-height: 1.3;
+    margin-bottom: 6px;
+  }
+
+  .other-option .other-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--code-bg);
+    color: var(--text);
+    font-size: 14px;
+    resize: none;
+    line-height: 1.4;
+    display: none;
+  }
+
+  .other-option.selected .other-input {
+    display: block;
+  }
+
+  .other-option .other-input:focus {
+    outline: none;
+    border-color: var(--blue);
+  }
+
+  .other-option .other-input::placeholder {
+    color: var(--text-dim);
+  }
+
+  .btn-submit-questions {
+    width: 100%;
+    min-height: 48px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: var(--green-dim);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: transform 0.1s, opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-submit-questions:active { transform: scale(0.97); }
+  .btn-submit-questions:disabled { opacity: 0.35; cursor: default; transform: none; }
+
+  .btn-dismiss {
+    background: none;
+    border: none;
+    color: var(--text-dim);
+    font-size: 18px;
+    padding: 4px 8px;
+    cursor: pointer;
+    opacity: 0.6;
+    transition: opacity 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .btn-dismiss:hover, .btn-dismiss:active {
+    opacity: 1;
+    color: var(--accent);
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-left">
+    <h1>cc-mob</h1>
+    <span class="badge" id="pendingBadge">0</span>
+  </div>
+  <div class="status-row">
+    <span id="statusText">connecting</span>
+    <div class="status-dot" id="statusDot"></div>
+  </div>
+</header>
+
+<div id="pendingSection">
+  <div class="section-label">Pending</div>
+  <div id="pendingList">
+    <div class="empty-state">
+      <div class="empty-state-title">No pending requests</div>
+      Waiting for Claude to request approval...
+    </div>
+  </div>
+</div>
+
+<div id="historySection">
+  <div class="history-header">
+    <button class="history-toggle" id="historyToggle" onclick="toggleHistory()">
+      Show history
+    </button>
+    <span class="history-count" id="historyCount"></span>
+  </div>
+  <div id="historyList" style="display:none"></div>
+</div>
+
+<script>
+const API = `${location.protocol}//${location.host}`;
+let WS_URL = `${location.protocol === 'https:' ? 'wss:' : 'ws:'}//${location.host}`;
+let authenticated = false;
+
+let ws = null;
+let requests = new Map();
+let reconnectDelay = 1000;
+let timeAgoInterval = null;
+
+// Exchange URL token for HttpOnly cookie, then strip token from URL
+async function authenticate() {
+  const token = new URLSearchParams(location.search).get('token');
+  if (token) {
+    try {
+      const res = await fetch(`${API}/auth`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify({ token }),
+      });
+      if (res.ok) {
+        authenticated = true;
+        // Strip token from URL to prevent leaking via referrer/history
+        history.replaceState(null, '', location.pathname);
+      }
+    } catch (e) {}
+  } else {
+    // Already have cookie from previous visit
+    authenticated = true;
+  }
+}
+
+// --- Time formatting ---
+function timeAgo(ts) {
+  if (!ts) return '';
+  const diff = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (diff < 5) return 'just now';
+  if (diff < 60) return diff + 's ago';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+function updateTimeAgos() {
+  document.querySelectorAll('[data-created]').forEach(el => {
+    el.textContent = timeAgo(parseInt(el.dataset.created));
+  });
+}
+
+// --- Tool icon mapping ---
+function getToolIcon(toolName) {
+  const name = (toolName || '').toLowerCase();
+  if (name.includes('bash') || name === 'execute_command') return '>';
+  if (name.includes('edit')) return 'E';
+  if (name.includes('write')) return 'W';
+  if (name.includes('read') || name.includes('glob') || name.includes('grep')) return 'R';
+  if (name.includes('webfetch') || name.includes('web_fetch')) return 'F';
+  if (name.includes('websearch') || name.includes('web_search')) return 'S';
+  if (name.includes('task')) return 'T';
+  if (name.includes('notebook')) return 'N';
+  return '#';
+}
+
+function getToolDisplayName(toolName) {
+  const name = (toolName || '').toLowerCase();
+  if (name.includes('bash') || name === 'execute_command') return 'Bash';
+  if (name.includes('edit')) return 'Edit';
+  if (name.includes('write')) return 'Write';
+  if (name.includes('read')) return 'Read';
+  if (name.includes('glob')) return 'Glob';
+  if (name.includes('grep')) return 'Grep';
+  if (name.includes('webfetch') || name.includes('web_fetch')) return 'WebFetch';
+  if (name.includes('websearch') || name.includes('web_search')) return 'WebSearch';
+  if (name.includes('task')) return 'Task';
+  if (name.includes('notebook')) return 'Notebook';
+  return toolName || 'Tool';
+}
+
+// --- Intelligent content rendering ---
+function renderToolContent(toolName, toolInput) {
+  const name = (toolName || '').toLowerCase();
+  const input = (typeof toolInput === 'object' && toolInput !== null) ? toolInput : {};
+
+  // Bash: show command in code block
+  if (name.includes('bash') || name === 'execute_command') {
+    const cmd = input.command || input.cmd || (typeof toolInput === 'string' ? toolInput : '');
+    let html = '';
+    if (input.description) {
+      html += `<div class="description-text">${esc(input.description)}</div>`;
+    }
+    if (cmd) {
+      const isShort = cmd.length < 200 && !cmd.includes('\n');
+      html += `<div class="code-block${isShort ? ' short' : ''}">${esc(cmd)}</div>`;
+    }
+    return html || renderFallback(toolInput);
+  }
+
+  // Edit: show file path + old/new
+  if (name.includes('edit')) {
+    let html = '';
+    if (input.file_path) html += `<div class="file-path">${esc(input.file_path)}</div>`;
+    if (input.old_string != null) {
+      html += `<div class="diff-label old">Remove</div>`;
+      html += `<div class="code-block">${esc(truncate(input.old_string, 300))}</div>`;
+    }
+    if (input.new_string != null) {
+      html += `<div class="diff-label new">Add</div>`;
+      html += `<div class="code-block">${esc(truncate(input.new_string, 300))}</div>`;
+    }
+    return html || renderFallback(toolInput);
+  }
+
+  // Write: show file path + content preview
+  if (name.includes('write')) {
+    let html = '';
+    if (input.file_path) html += `<div class="file-path">${esc(input.file_path)}</div>`;
+    if (input.content) {
+      html += `<div class="code-block">${esc(truncate(input.content, 400))}</div>`;
+    }
+    return html || renderFallback(toolInput);
+  }
+
+  // Read / Glob / Grep: show file path or pattern
+  if (name.includes('read') || name.includes('glob') || name.includes('grep')) {
+    let html = '';
+    if (input.file_path) html += `<div class="file-path">${esc(input.file_path)}</div>`;
+    if (input.pattern) html += `<div class="code-block short">${esc(input.pattern)}</div>`;
+    if (input.path && !input.file_path) html += `<div class="file-path">${esc(input.path)}</div>`;
+    return html || renderFallback(toolInput);
+  }
+
+  // WebFetch: show URL
+  if (name.includes('webfetch') || name.includes('web_fetch')) {
+    let html = '';
+    if (input.url) html += `<div class="url-display">${esc(input.url)}</div>`;
+    if (input.prompt) html += `<div class="description-text">${esc(truncate(input.prompt, 200))}</div>`;
+    return html || renderFallback(toolInput);
+  }
+
+  // WebSearch: show query
+  if (name.includes('websearch') || name.includes('web_search')) {
+    let html = '';
+    if (input.query) html += `<div class="query-display">"${esc(input.query)}"</div>`;
+    return html || renderFallback(toolInput);
+  }
+
+  // Task: show description
+  if (name.includes('task')) {
+    let html = '';
+    if (input.description) html += `<div class="description-text">${esc(input.description)}</div>`;
+    if (input.prompt) html += `<div class="content-preview">${esc(truncate(input.prompt, 300))}</div>`;
+    return html || renderFallback(toolInput);
+  }
+
+  // Notebook
+  if (name.includes('notebook')) {
+    let html = '';
+    if (input.notebook_path) html += `<div class="file-path">${esc(input.notebook_path)}</div>`;
+    if (input.new_source) html += `<div class="code-block">${esc(truncate(input.new_source, 300))}</div>`;
+    return html || renderFallback(toolInput);
+  }
+
+  // Fallback: key-value pairs
+  return renderFallback(toolInput);
+}
+
+function renderFallback(input) {
+  if (typeof input === 'string') {
+    return `<div class="content-preview">${esc(truncate(input, 500))}</div>`;
+  }
+  if (typeof input !== 'object' || input === null) {
+    return `<div class="content-preview">${esc(String(input))}</div>`;
+  }
+
+  const keys = Object.keys(input);
+  if (keys.length === 0) return '';
+
+  let html = '<dl class="kv-table">';
+  for (const key of keys.slice(0, 8)) {
+    const val = input[key];
+    const display = typeof val === 'string' ? truncate(val, 200)
+      : typeof val === 'object' ? JSON.stringify(val, null, 2).slice(0, 200)
+      : String(val);
+    html += `<dt>${esc(key)}</dt><dd>${esc(display)}</dd>`;
+  }
+  if (keys.length > 8) {
+    html += `<dt>...</dt><dd>${keys.length - 8} more fields</dd>`;
+  }
+  html += '</dl>';
+  return html;
+}
+
+function truncate(s, max) {
+  if (!s) return '';
+  s = String(s);
+  if (s.length <= max) return s;
+  return s.slice(0, max) + '...';
+}
+
+// --- Render ---
+function render() {
+  const pending = [];
+  const resolved = [];
+  for (const r of requests.values()) {
+    if (r.status === 'pending') pending.push(r);
+    else resolved.push(r);
+  }
+
+  // Update badge
+  const badge = document.getElementById('pendingBadge');
+  if (pending.length > 0) {
+    badge.textContent = pending.length;
+    badge.classList.add('visible');
+  } else {
+    badge.classList.remove('visible');
+  }
+
+  // Update page title
+  document.title = pending.length > 0 ? `(${pending.length}) cc-mob` : 'cc-mob';
+
+  const pendingEl = document.getElementById('pendingList');
+  if (pending.length === 0) {
+    pendingEl.innerHTML = `<div class="empty-state">
+      <div class="empty-state-title">No pending requests</div>
+      Waiting for Claude to request approval...
+    </div>`;
+  } else {
+    // Sort pending by createdAt ascending (oldest first, newest at bottom)
+    pending.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    pendingEl.innerHTML = pending.map(r => renderCard(r)).join('');
+    // Auto-scroll to bottom for newest card
+    requestAnimationFrame(() => {
+      const lastCard = pendingEl.lastElementChild;
+      if (lastCard) lastCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+  }
+
+  // History
+  const historyCount = document.getElementById('historyCount');
+  historyCount.textContent = resolved.length > 0 ? resolved.length + ' resolved' : '';
+
+  const historyEl = document.getElementById('historyList');
+  if (resolved.length === 0) {
+    historyEl.innerHTML = '<div class="empty-state">No history yet</div>';
+  } else {
+    historyEl.innerHTML = resolved
+      .sort((a, b) => (b.resolvedAt || 0) - (a.resolvedAt || 0))
+      .map(r => renderResolvedCard(r)).join('');
+  }
+}
+
+function renderCard(r) {
+  const isPermission = r.type === 'permission';
+  const p = r.payload || {};
+
+  if (isPermission) {
+    const tool = p.tool_name || p.toolName || 'Unknown tool';
+    const input = p.tool_input || p.input || {};
+    const icon = getToolIcon(tool);
+    const displayName = getToolDisplayName(tool);
+    const content = renderToolContent(tool, input);
+
+    return `<div class="swipe-wrapper" id="swipe-${r.id}">
+      <div class="swipe-bg left" id="swipe-bg-left-${r.id}">Approve</div>
+      <div class="swipe-bg right" id="swipe-bg-right-${r.id}">Deny</div>
+      <div class="card" id="card-${r.id}" data-swipe-id="${r.id}">
+        <div class="card-header">
+          <div class="tool-label">
+            <div class="tool-icon permission">${esc(icon)}</div>
+            <div>
+              <div class="tool-name">${esc(displayName)}</div>
+              <div class="tool-type">Permission request</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="time-ago" data-created="${r.createdAt || ''}">${timeAgo(r.createdAt)}</span>
+            <button class="btn-dismiss" onclick="dismissCard('${r.id}')" title="Dismiss">&times;</button>
+          </div>
+        </div>
+        <div class="tool-content">${content}</div>
+        <div class="btn-row">
+          <button class="btn btn-allow" onclick="respond('${r.id}','allow')">Approve</button>
+          <button class="btn btn-deny" onclick="respond('${r.id}','deny')">Deny</button>
+        </div>
+      </div>
+    </div>`;
+  } else if (p.questions && Array.isArray(p.questions)) {
+    // New rich multi-question card
+    const questionsHtml = p.questions.map((q, qi) => {
+      const multiClass = q.multiSelect ? ' multi' : '';
+      const optionsHtml = q.options.map((opt, oi) => {
+        return `<div class="option-card${multiClass}" data-req="${r.id}" data-qi="${qi}" data-oi="${oi}"
+                     onclick="toggleOption('${r.id}',${qi},${oi},${q.multiSelect})">
+          <div class="option-indicator"></div>
+          <div class="option-text">
+            <div class="option-label">${esc(opt.label)}</div>
+            <div class="option-desc">${esc(opt.description)}</div>
+          </div>
+        </div>`;
+      }).join('');
+
+      const otherHtml = `<div class="other-option${multiClass}" data-req="${r.id}" data-qi="${qi}" data-oi="other"
+                              onclick="toggleOther('${r.id}',${qi},${q.multiSelect})">
+        <div class="option-indicator"></div>
+        <div class="other-content">
+          <div class="option-label">Other</div>
+          <textarea class="other-input" data-req="${r.id}" data-qi="${qi}"
+            placeholder="Type your answer..." rows="1"
+            onclick="event.stopPropagation()"></textarea>
+        </div>
+      </div>`;
+
+      return `<div class="question-group" data-req="${r.id}" data-qi="${qi}">
+        <div class="question-header-chip">${esc(q.header)}</div>
+        <div class="question-text">${esc(q.question)}</div>
+        ${optionsHtml}
+        ${otherHtml}
+      </div>`;
+    }).join('');
+
+    return `<div class="card" id="card-${r.id}">
+      <div class="card-header">
+        <div class="tool-label">
+          <div class="tool-icon question">?</div>
+          <div>
+            <div class="tool-name">Question</div>
+            <div class="tool-type">Needs your input</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="time-ago" data-created="${r.createdAt || ''}">${timeAgo(r.createdAt)}</span>
+          <button class="btn-dismiss" onclick="dismissCard('${r.id}')" title="Dismiss">&times;</button>
+        </div>
+      </div>
+      ${questionsHtml}
+      <button class="btn-submit-questions" id="submit-${r.id}" onclick="submitQuestions('${r.id}')" disabled>Submit</button>
+    </div>`;
+
+  } else {
+    // Legacy simple question card
+    const question = p.question || p.message || (typeof p === 'string' ? p : JSON.stringify(p));
+
+    // Build options from payload
+    const rawOptions = [];
+    if (Array.isArray(p.options)) {
+      p.options.forEach(o => {
+        if (typeof o === 'string') rawOptions.push(o);
+        else if (o && o.label) rawOptions.push(o.label);
+        else if (o && o.value) rawOptions.push(o.value);
+      });
+    }
+
+    // Add sensible defaults if no options provided
+    const defaults = rawOptions.length === 0 ? ['Yes', 'No', 'Continue'] : [];
+    const allOptions = [...rawOptions, ...defaults].filter((v, i, a) => a.indexOf(v) === i);
+
+    const quickHtml = allOptions
+      .map(o => `<button class="quick-btn" onclick="sendAnswer('${r.id}',${JSON.stringify(o)})">${esc(o)}</button>`)
+      .join('');
+
+    return `<div class="card" id="card-${r.id}">
+      <div class="card-header">
+        <div class="tool-label">
+          <div class="tool-icon question">?</div>
+          <div>
+            <div class="tool-name">Question</div>
+            <div class="tool-type">Needs your input</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span class="time-ago" data-created="${r.createdAt || ''}">${timeAgo(r.createdAt)}</span>
+          <button class="btn-dismiss" onclick="dismissCard('${r.id}')" title="Dismiss">&times;</button>
+        </div>
+      </div>
+      <div class="question-text">${esc(question)}</div>
+      <div class="quick-btns">${quickHtml}</div>
+      <div class="answer-row">
+        <textarea class="answer-input" id="input-${r.id}" placeholder="Type your answer..." rows="1"
+          onkeydown="handleInputKey(event,'${r.id}')"></textarea>
+        <button class="btn-send-inline" onclick="sendInputAnswer('${r.id}')">&uarr;</button>
+      </div>
+    </div>`;
+  }
+}
+
+function renderResolvedCard(r) {
+  const p = r.payload || {};
+  const isPermission = r.type === 'permission';
+
+  let title, resultText, resultClass;
+  if (isPermission) {
+    title = getToolDisplayName(p.tool_name || p.toolName || 'Permission');
+    const decision = (r.response && r.response.decision) || '';
+    if (decision === 'allow' || decision === 'approve') {
+      resultText = 'Approved';
+      resultClass = 'allowed';
+    } else {
+      resultText = 'Denied';
+      resultClass = 'denied';
+    }
+  } else {
+    title = truncate(p.question || (p.questions && p.questions[0] && p.questions[0].question) || 'Question', 60);
+    resultText = 'Answered';
+    resultClass = 'answered';
+  }
+
+  // Summary detail
+  let detail = '';
+  if (isPermission) {
+    const input = p.tool_input || p.input || {};
+    const toolName = (p.tool_name || '').toLowerCase();
+    if (toolName.includes('bash') && input.command) {
+      detail = truncate(input.command, 80);
+    } else if (input.file_path) {
+      detail = input.file_path;
+    } else if (input.query) {
+      detail = input.query;
+    }
+  } else {
+    const ans = r.response && (r.response.answer || r.response.decision);
+    if (ans) detail = truncate(typeof ans === 'string' ? ans : JSON.stringify(ans), 80);
+  }
+
+  return `<div class="resolved-card">
+    <div class="resolved-header">
+      <span class="resolved-tool">${esc(title)}</span>
+      <span class="resolved-result ${resultClass}">${resultText}</span>
+    </div>
+    ${detail ? `<div class="resolved-detail">${esc(detail)}</div>` : ''}
+    <div class="resolved-time" data-created="${r.resolvedAt || ''}">${timeAgo(r.resolvedAt)}</div>
+  </div>`;
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// --- Actions ---
+async function respond(id, decision) {
+  const card = document.getElementById('card-' + id);
+  const btns = card ? card.querySelectorAll('.btn') : [];
+  btns.forEach(b => b.disabled = true);
+
+  try {
+    const res = await fetch(`${API}/api/request/${id}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ decision: { decision, reason: decision === 'allow' ? 'Approved from phone' : 'Denied from phone' } }),
+    });
+    if (!res.ok) {
+      // Request already resolved (timeout/expired) - refresh to sync state
+      if (res.status === 404) {
+        loadExisting();
+        return;
+      }
+      const err = await res.text();
+      throw new Error(`HTTP ${res.status}: ${err}`);
+    }
+    animateResolve(id);
+  } catch (e) {
+    btns.forEach(b => b.disabled = false);
+    // On error, refresh to sync state
+    loadExisting();
+  }
+}
+
+function sendAnswer(id, answer) {
+  respondAnswer(id, answer);
+}
+
+async function dismissCard(id) {
+  // Send dismiss to server (resolves as denied/dismissed)
+  try {
+    await fetch(`${API}/api/request/${id}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ decision: { decision: 'dismiss', reason: 'Dismissed from phone' } }),
+    });
+  } catch (e) {}
+  // Always animate out, even on error
+  animateResolve(id);
+}
+
+function sendInputAnswer(id) {
+  const el = document.getElementById('input-' + id);
+  if (!el || !el.value.trim()) return;
+  respondAnswer(id, el.value.trim());
+}
+
+function handleInputKey(event, id) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendInputAnswer(id);
+  }
+}
+
+async function respondAnswer(id, answer) {
+  try {
+    const res = await fetch(`${API}/api/request/${id}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ decision: { answer } }),
+    });
+    if (!res.ok) {
+      // Request already resolved (timeout/expired) - refresh to sync state
+      if (res.status === 404) {
+        loadExisting();
+        return;
+      }
+      const err = await res.text();
+      throw new Error(`HTTP ${res.status}: ${err}`);
+    }
+    animateResolve(id);
+  } catch (e) {
+    // On error, refresh to sync state
+    loadExisting();
+  }
+}
+
+// --- Rich question selection state ---
+// Tracks selections: { reqId: { qi: { type: 'option'|'other', indices: Set, text: '' } } }
+const questionSelections = {};
+
+function getSelState(reqId, qi) {
+  if (!questionSelections[reqId]) questionSelections[reqId] = {};
+  if (!questionSelections[reqId][qi]) questionSelections[reqId][qi] = { type: null, indices: new Set(), text: '' };
+  return questionSelections[reqId][qi];
+}
+
+function toggleOption(reqId, qi, oi, multiSelect) {
+  const sel = getSelState(reqId, qi);
+
+  if (multiSelect) {
+    // Deselect "other" if it was selected and user picks an option
+    const otherEl = document.querySelector(`.other-option[data-req="${reqId}"][data-qi="${qi}"]`);
+    if (otherEl && otherEl.classList.contains('selected')) {
+      otherEl.classList.remove('selected');
+    }
+    sel.type = 'option';
+    if (sel.indices.has(oi)) {
+      sel.indices.delete(oi);
+      if (sel.indices.size === 0) sel.type = null;
+    } else {
+      sel.indices.add(oi);
+    }
+  } else {
+    // Single select: clear other and previous options
+    const otherEl = document.querySelector(`.other-option[data-req="${reqId}"][data-qi="${qi}"]`);
+    if (otherEl) otherEl.classList.remove('selected');
+    sel.type = 'option';
+    sel.indices.clear();
+    sel.indices.add(oi);
+    sel.text = '';
+  }
+
+  // Update option card UI
+  const cards = document.querySelectorAll(`.option-card[data-req="${reqId}"][data-qi="${qi}"]`);
+  cards.forEach(card => {
+    const idx = parseInt(card.dataset.oi);
+    card.classList.toggle('selected', sel.indices.has(idx));
+  });
+
+  updateSubmitButton(reqId);
+}
+
+function toggleOther(reqId, qi, multiSelect) {
+  const sel = getSelState(reqId, qi);
+  const otherEl = document.querySelector(`.other-option[data-req="${reqId}"][data-qi="${qi}"]`);
+  if (!otherEl) return;
+
+  if (multiSelect) {
+    // In multi-select, "Other" deselects all options
+    const cards = document.querySelectorAll(`.option-card[data-req="${reqId}"][data-qi="${qi}"]`);
+    cards.forEach(c => c.classList.remove('selected'));
+    sel.indices.clear();
+  } else {
+    // Single select: clear options
+    const cards = document.querySelectorAll(`.option-card[data-req="${reqId}"][data-qi="${qi}"]`);
+    cards.forEach(c => c.classList.remove('selected'));
+    sel.indices.clear();
+  }
+
+  const isNowSelected = !otherEl.classList.contains('selected');
+  otherEl.classList.toggle('selected', isNowSelected);
+  sel.type = isNowSelected ? 'other' : null;
+
+  if (isNowSelected) {
+    const input = otherEl.querySelector('.other-input');
+    if (input) setTimeout(() => input.focus(), 50);
+  }
+
+  updateSubmitButton(reqId);
+}
+
+function updateSubmitButton(reqId) {
+  const btn = document.getElementById('submit-' + reqId);
+  if (!btn) return;
+
+  const req = requests.get(reqId);
+  if (!req || !req.payload || !req.payload.questions) return;
+
+  const allAnswered = req.payload.questions.every((q, qi) => {
+    const sel = getSelState(reqId, qi);
+    if (sel.type === 'option' && sel.indices.size > 0) return true;
+    if (sel.type === 'other') {
+      const input = document.querySelector(`.other-option[data-req="${reqId}"][data-qi="${qi}"] .other-input`);
+      return input && input.value.trim().length > 0;
+    }
+    return false;
+  });
+
+  btn.disabled = !allAnswered;
+}
+
+function submitQuestions(reqId) {
+  const req = requests.get(reqId);
+  if (!req || !req.payload || !req.payload.questions) return;
+
+  const answers = {};
+  req.payload.questions.forEach((q, qi) => {
+    const sel = getSelState(reqId, qi);
+    if (sel.type === 'option') {
+      if (q.multiSelect) {
+        const labels = Array.from(sel.indices).map(i => q.options[i].label);
+        answers[q.question] = labels.join(', ');
+      } else {
+        const idx = Array.from(sel.indices)[0];
+        answers[q.question] = q.options[idx].label;
+      }
+    } else if (sel.type === 'other') {
+      const input = document.querySelector(`.other-option[data-req="${reqId}"][data-qi="${qi}"] .other-input`);
+      answers[q.question] = input ? input.value.trim() : '';
+    }
+  });
+
+  respondAnswer(reqId, answers);
+  delete questionSelections[reqId];
+}
+
+// Listen for input in "other" textareas to update submit button state
+document.addEventListener('input', (e) => {
+  if (e.target.classList.contains('other-input')) {
+    const reqId = e.target.dataset.req;
+    if (reqId) updateSubmitButton(reqId);
+  }
+});
+
+function animateResolve(id) {
+  // For permission cards wrapped in swipe-wrapper
+  const wrapper = document.getElementById('swipe-' + id);
+  if (wrapper) {
+    wrapper.style.transition = 'opacity 0.3s, max-height 0.4s, margin 0.4s';
+    wrapper.style.opacity = '0';
+    wrapper.style.maxHeight = wrapper.offsetHeight + 'px';
+    requestAnimationFrame(() => {
+      wrapper.style.maxHeight = '0';
+      wrapper.style.marginBottom = '0';
+      wrapper.style.overflow = 'hidden';
+    });
+    setTimeout(() => render(), 400);
+    return;
+  }
+  // For question cards (no swipe wrapper)
+  const card = document.getElementById('card-' + id);
+  if (card) {
+    card.classList.add('resolving');
+    setTimeout(() => render(), 400);
+  }
+}
+
+function toggleHistory() {
+  const el = document.getElementById('historyList');
+  const btn = document.getElementById('historyToggle');
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    btn.textContent = 'Hide history';
+  } else {
+    el.style.display = 'none';
+    btn.textContent = 'Show history';
+  }
+}
+
+// --- WebSocket ---
+function connectWS() {
+  // WebSocket connections automatically send cookies (same-origin)
+  ws = new WebSocket(WS_URL);
+
+  ws.onopen = () => {
+    document.getElementById('statusDot').classList.add('connected');
+    document.getElementById('statusText').textContent = 'connected';
+    reconnectDelay = 1000;
+  };
+
+  ws.onclose = () => {
+    document.getElementById('statusDot').classList.remove('connected');
+    document.getElementById('statusText').textContent = 'reconnecting';
+    setTimeout(connectWS, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 1.5, 10000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  ws.onmessage = (evt) => {
+    const msg = JSON.parse(evt.data);
+    if (msg.event === 'init') {
+      (msg.data.pending || []).forEach(r => requests.set(r.id, r));
+      render();
+    } else if (msg.event === 'new_request') {
+      requests.set(msg.data.id, msg.data);
+      render();
+      const p = msg.data.payload || {};
+      if (msg.data.type === 'permission') {
+        alertUser('Permission Request', p.tool_name || 'Claude needs approval');
+      } else {
+        const qText = p.question || (p.questions && p.questions[0] && p.questions[0].question) || 'Claude has a question';
+        alertUser('Question from Claude', qText);
+      }
+    } else if (msg.event === 'resolved') {
+      if (requests.has(msg.data.id)) {
+        requests.set(msg.data.id, { ...requests.get(msg.data.id), ...msg.data });
+      }
+      render();
+    }
+  };
+}
+
+// --- Push notifications ---
+let swReg = null;
+
+function alertUser(title, body) {
+  try {
+    if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+  } catch (e) {}
+
+  if (Notification.permission === 'granted' && swReg) {
+    try {
+      swReg.showNotification(title || 'cc-mob', {
+        body: body || 'New request from Claude',
+        tag: 'cc-mob-' + Date.now(),
+        renotify: true,
+        vibrate: [200, 100, 200, 100, 200],
+      });
+    } catch (e) {}
+  }
+}
+
+async function setupNotifications() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    swReg = await navigator.serviceWorker.register('/sw.js');
+  } catch (e) {}
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+setupNotifications();
+
+// --- Swipe gestures for permission cards ---
+const SWIPE_THRESHOLD = 80;
+let swipeState = null;
+
+document.addEventListener('touchstart', (e) => {
+  const card = e.target.closest('[data-swipe-id]');
+  if (!card) return;
+  const id = card.dataset.swipeId;
+  const touch = e.touches[0];
+  swipeState = { id, startX: touch.clientX, startY: touch.clientY, dx: 0, locked: false, dismissed: false };
+}, { passive: true });
+
+document.addEventListener('touchmove', (e) => {
+  if (!swipeState || swipeState.dismissed) return;
+  const touch = e.touches[0];
+  const dx = touch.clientX - swipeState.startX;
+  const dy = touch.clientY - swipeState.startY;
+
+  // If vertical scroll dominates, cancel swipe
+  if (!swipeState.locked && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 10) {
+    swipeState = null;
+    return;
+  }
+
+  // Lock into horizontal swipe once threshold met
+  if (!swipeState.locked && Math.abs(dx) > 10) {
+    swipeState.locked = true;
+  }
+
+  if (!swipeState.locked) return;
+
+  swipeState.dx = dx;
+  const card = document.getElementById('card-' + swipeState.id);
+  if (!card) return;
+
+  card.classList.add('swiping');
+  card.style.transform = `translateX(${dx}px)`;
+
+  // Show approve/deny background
+  const bgLeft = document.getElementById('swipe-bg-left-' + swipeState.id);
+  const bgRight = document.getElementById('swipe-bg-right-' + swipeState.id);
+  if (bgLeft) bgLeft.classList.toggle('visible', dx > SWIPE_THRESHOLD * 0.5);
+  if (bgRight) bgRight.classList.toggle('visible', dx < -SWIPE_THRESHOLD * 0.5);
+}, { passive: true });
+
+document.addEventListener('touchend', () => {
+  if (!swipeState || !swipeState.locked || swipeState.dismissed) {
+    swipeState = null;
+    return;
+  }
+
+  const { id, dx } = swipeState;
+  const card = document.getElementById('card-' + id);
+  if (!card) { swipeState = null; return; }
+
+  card.classList.remove('swiping');
+
+  if (dx > SWIPE_THRESHOLD) {
+    // Swipe right = approve
+    swipeState.dismissed = true;
+    card.classList.add('swipe-out-right');
+    setTimeout(() => respond(id, 'allow'), 300);
+  } else if (dx < -SWIPE_THRESHOLD) {
+    // Swipe left = deny
+    swipeState.dismissed = true;
+    card.classList.add('swipe-out-left');
+    setTimeout(() => respond(id, 'deny'), 300);
+  } else {
+    // Snap back
+    card.classList.add('swipe-snap');
+    card.style.transform = '';
+    const bgLeft = document.getElementById('swipe-bg-left-' + id);
+    const bgRight = document.getElementById('swipe-bg-right-' + id);
+    if (bgLeft) bgLeft.classList.remove('visible');
+    if (bgRight) bgRight.classList.remove('visible');
+    card.addEventListener('transitionend', () => card.classList.remove('swipe-snap'), { once: true });
+  }
+
+  swipeState = null;
+});
+
+// --- Init ---
+async function loadExisting() {
+  try {
+    const res = await fetch(`${API}/api/requests`, { credentials: 'same-origin' });
+    const data = await res.json();
+    (data.all || []).forEach(r => requests.set(r.id, r));
+    render();
+  } catch (e) {}
+}
+
+// Auto-update time-ago labels every 10s
+timeAgoInterval = setInterval(updateTimeAgos, 10000);
+
+// Authenticate first, then connect
+(async () => {
+  await authenticate();
+  loadExisting();
+  connectWS();
+})();
+</script>
+</body>
+</html>
