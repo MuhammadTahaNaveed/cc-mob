@@ -23,7 +23,7 @@ try {
 const PORT = process.env.PORT || 3456;
 const TOKEN = process.env.AUTH_TOKEN || '';
 
-function httpRequest(method, urlPath, body) {
+function httpRequest(method, urlPath, body, timeoutMs = 300000) {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: '127.0.0.1',
@@ -31,6 +31,7 @@ function httpRequest(method, urlPath, body) {
       path: `${urlPath}${urlPath.includes('?') ? '&' : '?'}token=${TOKEN}`,
       method,
       headers: { 'Content-Type': 'application/json' },
+      timeout: timeoutMs,
     };
 
     const req = http.request(options, (res) => {
@@ -46,6 +47,10 @@ function httpRequest(method, urlPath, body) {
     });
 
     req.on('error', reject);
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Request timeout'));
+    });
     if (body) req.write(JSON.stringify(body));
     req.end();
   });

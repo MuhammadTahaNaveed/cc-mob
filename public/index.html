@@ -1579,10 +1579,23 @@ function esc(s) {
 }
 
 // --- Actions ---
+// Track in-flight requests to prevent double-clicks
+const inFlightRequests = new Set();
+
 async function respond(id, decision) {
+  // Prevent double-click
+  if (inFlightRequests.has(id)) return;
+  inFlightRequests.add(id);
+
   const card = document.getElementById('card-' + id);
   const btns = card ? card.querySelectorAll('.btn') : [];
   btns.forEach(b => b.disabled = true);
+
+  // Optimistic update: mark as resolving locally
+  const req = requests.get(id);
+  if (req) {
+    req._resolving = true;
+  }
 
   try {
     const res = await fetch(`${API}/api/request/${id}/respond`, {
@@ -1594,7 +1607,7 @@ async function respond(id, decision) {
     if (!res.ok) {
       // Request already resolved (timeout/expired) - refresh to sync state
       if (res.status === 404) {
-        loadExisting();
+        await loadExisting();
         return;
       }
       const err = await res.text();
@@ -1602,9 +1615,13 @@ async function respond(id, decision) {
     }
     animateResolve(id);
   } catch (e) {
+    // Clear optimistic update on error
+    if (req) req._resolving = false;
     btns.forEach(b => b.disabled = false);
     // On error, refresh to sync state
-    loadExisting();
+    await loadExisting();
+  } finally {
+    inFlightRequests.delete(id);
   }
 }
 
@@ -1640,6 +1657,14 @@ function handleInputKey(event, id) {
 }
 
 async function respondAnswer(id, answer) {
+  // Prevent double-click
+  if (inFlightRequests.has(id)) return;
+  inFlightRequests.add(id);
+
+  // Optimistic update
+  const req = requests.get(id);
+  if (req) req._resolving = true;
+
   try {
     const res = await fetch(`${API}/api/request/${id}/respond`, {
       method: 'POST',
@@ -1650,7 +1675,7 @@ async function respondAnswer(id, answer) {
     if (!res.ok) {
       // Request already resolved (timeout/expired) - refresh to sync state
       if (res.status === 404) {
-        loadExisting();
+        await loadExisting();
         return;
       }
       const err = await res.text();
@@ -1658,8 +1683,12 @@ async function respondAnswer(id, answer) {
     }
     animateResolve(id);
   } catch (e) {
+    // Clear optimistic update on error
+    if (req) req._resolving = false;
     // On error, refresh to sync state
-    loadExisting();
+    await loadExisting();
+  } finally {
+    inFlightRequests.delete(id);
   }
 }
 
@@ -1758,9 +1787,13 @@ function updateSubmitButton(reqId) {
   btn.disabled = !allAnswered;
 }
 
-function submitQuestions(reqId) {
+async function submitQuestions(reqId) {
   const req = requests.get(reqId);
   if (!req || !req.payload || !req.payload.questions) return;
+
+  // Prevent double-click
+  const btn = document.getElementById('submit-' + reqId);
+  if (btn) btn.disabled = true;
 
   const answers = {};
   req.payload.questions.forEach((q, qi) => {
@@ -1779,7 +1812,8 @@ function submitQuestions(reqId) {
     }
   });
 
-  respondAnswer(reqId, answers);
+  await respondAnswer(reqId, answers);
+  // Only delete after response confirmed
   delete questionSelections[reqId];
 }
 
@@ -1849,9 +1883,21 @@ function connectWS() {
   ws.onmessage = (evt) => {
     const msg = JSON.parse(evt.data);
     if (msg.event === 'init') {
-      (msg.data.pending || []).forEach(r => requests.set(r.id, r));
+      // On reconnect, don't overwrite requests that are:
+      // 1. Already being resolved (optimistic update)
+      // 2. Already resolved locally
+      (msg.data.pending || []).forEach(r => {
+        const existing = requests.get(r.id);
+        if (existing && (existing._resolving || existing.status === 'resolved')) {
+          return; // Don't overwrite
+        }
+        requests.set(r.id, r);
+      });
       render();
     } else if (msg.event === 'new_request') {
+      // Don't add if already resolving
+      const existing = requests.get(msg.data.id);
+      if (existing && existing._resolving) return;
       requests.set(msg.data.id, msg.data);
       render();
       const p = msg.data.payload || {};
@@ -1863,7 +1909,8 @@ function connectWS() {
       }
     } else if (msg.event === 'resolved') {
       if (requests.has(msg.data.id)) {
-        requests.set(msg.data.id, { ...requests.get(msg.data.id), ...msg.data });
+        const existing = requests.get(msg.data.id);
+        requests.set(msg.data.id, { ...existing, ...msg.data, _resolving: false });
       }
       render();
     }
@@ -1988,7 +2035,12 @@ async function loadExisting() {
   try {
     const res = await fetch(`${API}/api/requests`, { credentials: 'same-origin' });
     const data = await res.json();
-    (data.all || []).forEach(r => requests.set(r.id, r));
+    (data.all || []).forEach(r => {
+      // Don't overwrite requests that are being resolved
+      const existing = requests.get(r.id);
+      if (existing && existing._resolving) return;
+      requests.set(r.id, r);
+    });
     render();
   } catch (e) {}
 }

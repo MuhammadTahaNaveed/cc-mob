@@ -21,13 +21,14 @@ REQUEST_ID=""
 TMPFILE=""
 
 # Cleanup: cancel pending request and remove temp file
+# NOTE: curl runs synchronously (no &) to ensure it completes before exit
 cleanup() {
   if [ -n "$REQUEST_ID" ]; then
     local id="$REQUEST_ID"
     REQUEST_ID=""  # Clear to avoid double-cancel
-    curl -s -X POST "$BASE_URL/api/request/$id/respond?token=$TOKEN" \
+    curl -s --max-time 2 -X POST "$BASE_URL/api/request/$id/respond?token=$TOKEN" \
       -H "Content-Type: application/json" \
-      -d '{"decision":{"decision":"deny","reason":"Answered in terminal"}}' >/dev/null 2>&1 &
+      -d '{"decision":{"decision":"deny","reason":"Answered in terminal"}}' >/dev/null 2>&1
   fi
   [ -n "$TMPFILE" ] && rm -f "$TMPFILE"
 }
@@ -100,9 +101,9 @@ if [ -z "$REQUEST_ID" ]; then
 fi
 export REQUEST_ID
 
-# Long-poll for the user's decision (60s timeout)
+# Long-poll for the user's decision (5 minute timeout, matching hook timeout of 310s)
 # If timeout, exit silently so Claude Code falls through to terminal prompt
-RESULT=$(curl -s -f --max-time 60 "$BASE_URL/api/request/$REQUEST_ID/wait?token=$TOKEN" 2>/dev/null)
+RESULT=$(curl -s -f --max-time 300 "$BASE_URL/api/request/$REQUEST_ID/wait?token=$TOKEN" 2>/dev/null)
 if [ -z "$RESULT" ]; then
   # Timeout or error - exit silently, cleanup will cancel the request
   exit 0

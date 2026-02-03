@@ -123,7 +123,11 @@ app.get('/api/request/:id/wait', authCheck, async (req, res) => {
     const response = await store.wait(id);
     res.json({ status: 'resolved', response });
   } catch (err) {
-    res.status(404).json({ error: err.message });
+    if (err.message === 'Request timeout') {
+      res.status(408).json({ error: 'timeout', message: 'Request timed out waiting for response' });
+    } else {
+      res.status(404).json({ error: err.message });
+    }
   }
 });
 
