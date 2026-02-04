@@ -1,11 +1,8 @@
 {
   "mcpServers": {
     "cc-mob": {
-      "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server.js"],
-      "env": {
-        "CC_MOB_PLUGIN_ROOT": "${CLAUDE_PLUGIN_ROOT}"
-      }
+      "command": "npx",
+      "args": ["cc-mob", "mcp"]
     }
   }
 }
