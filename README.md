@@ -162,6 +162,21 @@ launchctl load ~/Library/LaunchAgents/com.cc-mob.server.plist
 - Verify plugin is loaded: run `/hooks` in Claude Code
 - Check that the plugin is enabled: `claude plugin list`
 
+**Plugin install fails with EXDEV error (Linux)**
+
+This is a [known Claude Code bug](https://github.com/anthropics/claude-code/issues/14799) on Linux when `/tmp` is on a different filesystem (tmpfs).
+
+Workaround:
+```bash
+mkdir -p ~/.claude/tmp
+TMPDIR=~/.claude/tmp claude plugin install cc-mob
+```
+
+Permanent fix (add to `~/.bashrc` or `~/.zshrc`):
+```bash
+export TMPDIR="$HOME/.claude/tmp"
+```
+
 ## License
 
 Apache-2.0
