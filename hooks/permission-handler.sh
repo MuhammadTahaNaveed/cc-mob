@@ -2,7 +2,8 @@
 # cc-mob: PermissionRequest hook
 # Forwards permission prompts to the mobile UI for approve/deny
 
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# Support plugin context via CLAUDE_PLUGIN_ROOT, fallback to script-relative
+SCRIPT_DIR="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENV_FILE="$SCRIPT_DIR/.env"
 
 # Load token

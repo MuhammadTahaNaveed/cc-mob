@@ -1,0 +1,13 @@
+# Local Claude Code files
+.claude/
+
+# Environment files
+.env
+
+# Git
+.git/
+.gitignore
+
+# Development
+node_modules/
+*.log

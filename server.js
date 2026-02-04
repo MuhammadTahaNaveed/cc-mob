@@ -56,7 +56,7 @@ function parseCookieFromReq(req, name) {
 }
 
 // Serve static files (index.html) - no auth required for page load
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(config.PROJECT_DIR, 'public')));
 
 // Auth endpoint: exchange token for HttpOnly session cookie
 app.post('/auth', (req, res) => {

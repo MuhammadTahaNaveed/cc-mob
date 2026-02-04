@@ -5,8 +5,9 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 
-// Load .env for AUTH_TOKEN
-const envPath = path.join(__dirname, '.env');
+// Load .env for AUTH_TOKEN (support plugin context via CC_MOB_PLUGIN_ROOT)
+const pluginRoot = process.env.CC_MOB_PLUGIN_ROOT || __dirname;
+const envPath = path.join(pluginRoot, '.env');
 try {
   const content = fs.readFileSync(envPath, 'utf8');
   for (const line of content.split('\n')) {

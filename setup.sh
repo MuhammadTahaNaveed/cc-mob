@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # cc-mob setup script
 # Installs dependencies, configures hooks, and sets up MCP server
+#
+# NOTE: For plugin installs (claude plugin install), hooks and MCP are
+# auto-configured. This script is for standalone use only.
 
 set -e
 

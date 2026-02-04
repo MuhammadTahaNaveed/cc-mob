@@ -4,7 +4,8 @@
 # Server ON → Phone only (block terminal, return answer via deny message)
 # Server OFF → Terminal only (normal Claude Code flow)
 
-SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# Support plugin context via CLAUDE_PLUGIN_ROOT, fallback to script-relative
+SCRIPT_DIR="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 ENV_FILE="$SCRIPT_DIR/.env"
 
 # Load env

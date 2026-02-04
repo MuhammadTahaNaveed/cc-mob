@@ -1,0 +1,4 @@
+# Ignore plugin config files when working in the repo
+# These are only meant to be loaded via --plugin-dir or marketplace install
+.mcp.json
+hooks/hooks.json
