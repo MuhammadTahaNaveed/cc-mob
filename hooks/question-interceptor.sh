@@ -4,9 +4,8 @@
 # Server ON → Phone only (block terminal, return answer via deny message)
 # Server OFF → Terminal only (normal Claude Code flow)
 
-# Support plugin context via CLAUDE_PLUGIN_ROOT, fallback to script-relative
-SCRIPT_DIR="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
-ENV_FILE="$SCRIPT_DIR/.env"
+# Use centralized config at ~/.cc-mob/ so server and plugin share the same token
+ENV_FILE="$HOME/.cc-mob/.env"
 
 # Load env
 if [ -f "$ENV_FILE" ]; then

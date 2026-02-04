@@ -5,9 +5,9 @@ const http = require('http');
 const path = require('path');
 const fs = require('fs');
 
-// Load .env for AUTH_TOKEN (support plugin context via CC_MOB_PLUGIN_ROOT)
-const pluginRoot = process.env.CC_MOB_PLUGIN_ROOT || __dirname;
-const envPath = path.join(pluginRoot, '.env');
+// Load .env from centralized config at ~/.cc-mob/ so server and plugin share the same token
+const os = require('os');
+const envPath = path.join(os.homedir(), '.cc-mob', '.env');
 try {
   const content = fs.readFileSync(envPath, 'utf8');
   for (const line of content.split('\n')) {

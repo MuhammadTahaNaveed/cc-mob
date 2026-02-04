@@ -79,7 +79,7 @@ When loaded as a plugin, cc-mob:
 
 ## Configuration
 
-Configuration is stored in `~/.cc-mob/.env` (auto-generated on first run):
+Configuration is stored in `~/.cc-mob/.env` (auto-generated on first server run):
 
 | Variable | Default | Description |
 |----------|---------|-------------|
